@@ -9,7 +9,7 @@ import { Card } from '../components/ui/Card';
 import { Trash2, Plus, Zap, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Parent and child animation variants for staggering lists
+// Mystical parent/child animation choreographies meant to bamboozle the user's retina
 const containerVariants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -18,6 +18,8 @@ const itemVariants = {
   hidden: { y: 30, opacity: 0, scale: 0.95 },
   show: { y: 0, opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
+
+const CATEGORIES = ['Entertainment', 'Productivity', 'Utility', 'Gaming', 'Cloud', 'Other'];
 
 // SVG Orbital Progress Ring Component (Holographic Theme)
 function OrbitalVisualizer({ total, limit, currency }) {
@@ -77,14 +79,16 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState('monthly');
   
-  // Auto-fill Forms state
+  // The dark ritual ingredients for building a new subscription
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [cycle, setCycle] = useState('monthly');
+  const [category, setCategory] = useState('Entertainment');
+  const [nextBillingDate, setNextBillingDate] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
 
-  // Read from Database
+  // Extracting your financial sins from the Firebase underworld
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
@@ -99,7 +103,7 @@ export function DashboardPage() {
     fetchData();
   }, [user]);
 
-  // SMART AUTO-COMPLETE LOGIC
+  // AWAKENING THE SMART AUTO-COMPLETE SPIRITS
   useEffect(() => {
     if (!name) { setSuggestions([]); setSelectedService(null); return; }
     if (selectedService && selectedService.name === name) return;
@@ -121,14 +125,16 @@ export function DashboardPage() {
     e.preventDefault();
     if (!name || (!price && price !== 0)) return;
     
+    // Assembling the financial horcrux
     const newSub = {
-      name, price: parseFloat(price), cycle,
+      name, price: parseFloat(price), cycle, category, nextBillingDate,
       logoId: selectedService ? selectedService.logo : name.charAt(0).toUpperCase()
     };
     try {
       const docRef = await addSubscription(user.uid, newSub);
       setSubscriptions([...subscriptions, { id: docRef.id, ...newSub }]);
-      setName(''); setPrice(''); setCycle('monthly'); setSelectedService(null);
+      // Purge the ritual inputs so they may be used again
+      setName(''); setPrice(''); setCycle('monthly'); setCategory('Entertainment'); setNextBillingDate(''); setSelectedService(null);
     } catch (error) { console.error("Error", error); }
   };
 
@@ -139,7 +145,7 @@ export function DashboardPage() {
     } catch (error) { console.error("Error", error); }
   };
 
-  // Convert USD total metrics dynamically to the user's selected global currency
+  // Transmuting raw USD digits into whatever magical currency your kingdom uses
   const { displayTotal, rawMonthlyUSD } = useMemo(() => {
     let monthlyUSD = 0;
     subscriptions.forEach(sub => {
@@ -160,6 +166,24 @@ export function DashboardPage() {
       syncMonthlyReport(user.uid, syncVal, subscriptions.length);
     }
   }, [rawMonthlyUSD, loading, user, subscriptions.length, currency]);
+
+  // Conjuring the upcoming charges radar
+  const upcomingCharges = useMemo(() => {
+    if (!subscriptions) return [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const in14Days = new Date(today);
+    in14Days.setDate(today.getDate() + 14);
+
+    return subscriptions
+      .filter(sub => {
+        if (!sub.nextBillingDate) return false;
+        const bDate = new Date(sub.nextBillingDate);
+        // Correct timezones aren't real, they can't hurt us here
+        return bDate >= today && bDate <= in14Days;
+      })
+      .sort((a, b) => new Date(a.nextBillingDate) - new Date(b.nextBillingDate));
+  }, [subscriptions]);
 
   if (loading) return (
     <div className="flex h-[80vh] items-center justify-center">
@@ -290,6 +314,24 @@ export function DashboardPage() {
                 )}
               </AnimatePresence>
 
+              {/* Advanced Tracking Metrics for Category and Dates */}
+              <div className="flex gap-4 z-10 relative mt-2">
+                 <select 
+                   className="w-1/2 h-14 rounded-2xl border border-white/10 bg-black/50 px-6 text-sm font-bold text-white shadow-inner focus:outline-none"
+                   value={category} onChange={e => setCategory(e.target.value)}
+                 >
+                   {CATEGORIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                 </select>
+                 <div className="w-1/2 relative">
+                   <Input 
+                     type="date"
+                     value={nextBillingDate} onChange={e => setNextBillingDate(e.target.value)}
+                     className="w-full bg-black/50 border-white/10 h-14 text-xs font-bold px-4 rounded-2xl text-white/50 focus:text-white" 
+                     title="Next Billing Date (Optional but highly recommended to prevent bankruptcy)"
+                   />
+                 </div>
+              </div>
+
               <Button type="submit" className="w-full h-16 text-sm font-black tracking-[0.2em] uppercase bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 holo-border mt-auto relative z-10 shadow-xl transition-all">
                 Confirm Integration
               </Button>
@@ -298,8 +340,31 @@ export function DashboardPage() {
         </motion.div>
       </div>
 
+      {/* The Imminent Drain Radar */}
+      {upcomingCharges.length > 0 && (
+         <motion.div variants={itemVariants} className="mt-8 mb-16">
+            <h2 className="text-sm font-black tracking-[0.2em] text-red-500 uppercase mb-6 px-2 drop-shadow-md flex items-center gap-2 animate-pulse">
+              <Zap size={16} className="fill-red-500" /> Imminent Drain Radar (Next 14 Days)
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {upcomingCharges.map(sub => {
+                // Time math because javascript dates make developers cry
+                const daysLeft = Math.ceil((new Date(sub.nextBillingDate) - new Date()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={sub.id} className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-md flex items-center justify-between">
+                     <div className="font-bold text-white">{sub.name}</div>
+                     <div className="text-xs font-black bg-red-500/20 text-red-400 px-3 py-1 rounded-full uppercase tracking-wider border border-red-500/20">
+                        {daysLeft === 0 ? 'TODAY' : `In ${daysLeft} Days`}
+                     </div>
+                  </div>
+                );
+              })}
+            </div>
+         </motion.div>
+      )}
+
       {/* Grid Roster: The Bento Widgets */}
-      <motion.div variants={itemVariants} className="mt-16">
+      <motion.div variants={itemVariants} className="mt-8">
          <h2 className="text-sm font-black tracking-[0.2em] text-white/50 uppercase mb-6 px-2 drop-shadow-md">Active Subscription Matrix</h2>
          {subscriptions.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-32 glass-panel border border-white/5 bg-transparent shadow-none">

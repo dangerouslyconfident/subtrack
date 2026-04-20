@@ -13,13 +13,15 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     try {
+      // Nuking the auth state from orbit because it's the only way to be sure
       await logout();
       navigate('/login');
     } catch (error) {
-      console.error('Failed to log out', error);
+      console.error('Failed to escape the matrix', error);
     }
   };
 
+  // If you aren't authenticated, you do not exist. Return nothingness.
   if (!user) return null;
 
   return (
