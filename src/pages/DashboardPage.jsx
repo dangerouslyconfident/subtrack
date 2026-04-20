@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { addSubscription, getUserSubscriptions, deleteSubscription, syncMonthlyReport, getMonthlyReports } from '../services/firestore';
+import { addSubscription, getUserSubscriptions, deleteSubscription, syncMonthlyReport } from '../services/firestore';
 import { POPULAR_SERVICES, convertCurrency, formatCurrency } from '../lib/services';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Card, CardContent } from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 import { Trash2, Plus, Zap, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Parent and child animation variants for staggering lists
 const containerVariants = {
@@ -76,7 +75,7 @@ export function DashboardPage() {
   
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
+  const [displayMode, setDisplayMode] = useState('monthly');
   
   // Auto-fill Forms state
   const [name, setName] = useState('');
@@ -92,8 +91,6 @@ export function DashboardPage() {
         try {
           const data = await getUserSubscriptions(user.uid);
           setSubscriptions(data);
-          const history = await getMonthlyReports(user.uid);
-          setReports(history);
         } catch (error) {
           console.error("Error", error);
         } finally { setLoading(false); }
@@ -143,36 +140,26 @@ export function DashboardPage() {
   };
 
   // Convert USD total metrics dynamically to the user's selected global currency
-  const { monthlyTotal } = useMemo(() => {
+  const { displayTotal, rawMonthlyUSD } = useMemo(() => {
     let monthlyUSD = 0;
     subscriptions.forEach(sub => {
       if (sub.cycle === 'monthly') monthlyUSD += sub.price;
       else monthlyUSD += (sub.price / 12);
     });
-    return { monthlyTotal: convertCurrency(monthlyUSD, currency) };
-  }, [subscriptions, currency]);
+    
+    // Scale tracking based on UI selection 
+    const finalAmount = displayMode === 'yearly' ? (monthlyUSD * 12) : monthlyUSD;
+    return { displayTotal: convertCurrency(finalAmount, currency), rawMonthlyUSD: monthlyUSD };
+  }, [subscriptions, currency, displayMode]);
 
-  // Sync Monthly Report automatically when total changes
+  // Sync Monthly Report automatically
   useEffect(() => {
     if (!loading && user && subscriptions.length > 0) {
-      syncMonthlyReport(user.uid, monthlyTotal, subscriptions.length);
-      
-      // Also locally update the reports array so the chart updates instantly!
-      const date = new Date();
-      const currentMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      setReports(prev => {
-        const existingIndex = prev.findIndex(r => r.month === currentMonth);
-        const updatedReport = { month: currentMonth, total: monthlyTotal };
-        if (existingIndex >= 0) {
-          const newReports = [...prev];
-          newReports[existingIndex] = updatedReport;
-          return newReports;
-        } else {
-          return [...prev, updatedReport];
-        }
-      });
+      // We always sync the MONTHLY cost for the reports, regardless of what the user is currently displaying
+      const syncVal = convertCurrency(rawMonthlyUSD, currency);
+      syncMonthlyReport(user.uid, syncVal, subscriptions.length);
     }
-  }, [monthlyTotal, loading, user, subscriptions.length]);
+  }, [rawMonthlyUSD, loading, user, subscriptions.length, currency]);
 
   if (loading) return (
     <div className="flex h-[80vh] items-center justify-center">
@@ -198,16 +185,26 @@ export function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-12 mb-10">
         
         {/* Orbital Display */}
-        <motion.div variants={itemVariants} className="md:col-span-5 md:h-[420px] h-[350px]">
+        <motion.div variants={itemVariants} className="md:col-span-5 h-[350px]">
           <Card className="glass-panel h-full flex flex-col items-center justify-center p-0 overflow-hidden relative">
             <h3 className="absolute top-8 left-8 text-xs font-bold text-white/50 tracking-[0.2em] uppercase">Telemetry Ring</h3>
-            <OrbitalVisualizer total={monthlyTotal} limit={visualLimit} currency={currency} />
-            <p className="absolute bottom-8 text-[10px] text-white/30 tracking-[0.4em] uppercase">Orbital Tracking Alpha</p>
+            <OrbitalVisualizer total={displayTotal} limit={convertCurrency(displayMode === 'yearly' ? 1200 : 100, currency)} currency={currency} />
+            
+            <div className="absolute bottom-6 flex gap-2 p-1 bg-black/40 border border-white/10 rounded-full backdrop-blur-md">
+               <button 
+                 onClick={() => setDisplayMode('monthly')}
+                 className={`px-4 py-1.5 text-xs font-bold tracking-widest uppercase rounded-full transition-all ${displayMode === 'monthly' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/40 hover:text-white/80'}`}
+               >Monthly</button>
+               <button 
+                 onClick={() => setDisplayMode('yearly')}
+                 className={`px-4 py-1.5 text-xs font-bold tracking-widest uppercase rounded-full transition-all ${displayMode === 'yearly' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/40 hover:text-white/80'}`}
+               >Yearly</button>
+            </div>
           </Card>
         </motion.div>
 
         {/* Smart Form */}
-        <motion.div variants={itemVariants} className="md:col-span-7 md:h-[420px]">
+        <motion.div variants={itemVariants} className="md:col-span-7 h-auto">
           <Card className="glass-panel h-full flex flex-col p-8 relative overflow-visible">
             {/* Subtle background glow leaking from bottom right corner */}
             <div className="absolute -bottom-24 -right-24 bg-indigo-500/10 blur-[100px] w-64 h-64 rounded-full pointer-events-none" />
@@ -358,34 +355,7 @@ export function DashboardPage() {
          )}
       </motion.div>
 
-      {/* Analytics Chart */}
-      <motion.div variants={itemVariants} className="mt-16 mb-20 animate-fade-in">
-         <h2 className="text-sm font-black tracking-[0.2em] text-white/50 uppercase mb-6 px-2 drop-shadow-md">Historical Spending Trends</h2>
-         <Card className="glass-panel p-8 h-[400px] flex flex-col justify-center border border-white/5">
-           {reports.length < 1 ? (
-             <div className="text-center text-white/40 font-bold tracking-[0.3em] text-sm uppercase">Initializing Analytics Engine...</div>
-           ) : (
-             <ResponsiveContainer width="100%" height="100%">
-               <AreaChart data={reports} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                 <defs>
-                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                     <stop offset="5%" stopColor="#33ccff" stopOpacity={0.8}/>
-                     <stop offset="95%" stopColor="#9933ff" stopOpacity={0}/>
-                   </linearGradient>
-                 </defs>
-                 <XAxis dataKey="month" stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} />
-                 <YAxis stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${currency === 'USD' ? '$' : ''}${val}`} />
-                 <Tooltip 
-                   contentStyle={{ backgroundColor: '#12121a', borderColor: '#ffffff20', borderRadius: '16px', fontWeight: 'bold' }}
-                   itemStyle={{ color: '#33ccff' }}
-                   formatter={(value) => [formatCurrency(value, currency), 'Monthly Output']}
-                 />
-                 <Area type="monotone" dataKey="total" stroke="#33ccff" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" />
-               </AreaChart>
-             </ResponsiveContainer>
-           )}
-         </Card>
-      </motion.div>
+
     </motion.div>
   );
 }

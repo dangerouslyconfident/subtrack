@@ -3,10 +3,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AnimatePresence } from 'framer-motion';
 
 function App() {
@@ -15,9 +16,9 @@ function App() {
     <AuthProvider>
       <SettingsProvider>
         <BrowserRouter>
-          <div className="min-h-screen font-sans text-slate-50 selection:bg-indigo-500/30 overflow-x-hidden">
-            <Navbar />
-            <main>
+          <div className="flex h-screen font-sans text-slate-50 selection:bg-indigo-500/30 overflow-hidden bg-[#050508]">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto relative">
               <AnimatePresence mode="wait">
                 <Routes>
                   {/* Public Routes */}
@@ -28,6 +29,11 @@ function App() {
                   <Route path="/" element={
                      <ProtectedRoute>
                        <DashboardPage />
+                     </ProtectedRoute>
+                  } />
+                  <Route path="/analytics" element={
+                     <ProtectedRoute>
+                       <AnalyticsPage />
                      </ProtectedRoute>
                   } />
                 </Routes>
