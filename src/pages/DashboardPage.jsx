@@ -196,6 +196,8 @@ export function DashboardPage() {
                 <Input 
                   value={name} 
                   onChange={e => setName(e.target.value)} 
+                  onBlur={() => setTimeout(() => setSuggestions([]), 200)}
+                  onKeyDown={e => e.key === 'Escape' && setSuggestions([])}
                   placeholder="Search Service (e.g., Netflix...)" 
                   className="bg-black/50 border-white/10 h-16 text-xl px-6 rounded-2xl shadow-inner font-medium focus:bg-black/70"
                   required 
