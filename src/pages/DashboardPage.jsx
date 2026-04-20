@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { addSubscription, getUserSubscriptions, deleteSubscription } from '../services/firestore';
+import { addSubscription, getUserSubscriptions, deleteSubscription, syncMonthlyReport, getMonthlyReports } from '../services/firestore';
 import { POPULAR_SERVICES, convertCurrency, formatCurrency } from '../lib/services';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent } from '../components/ui/Card';
 import { Trash2, Plus, Zap, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Parent and child animation variants for staggering lists
 const containerVariants = {
@@ -75,6 +76,7 @@ export function DashboardPage() {
   
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
   
   // Auto-fill Forms state
   const [name, setName] = useState('');
@@ -85,17 +87,19 @@ export function DashboardPage() {
 
   // Read from Database
   useEffect(() => {
-    const fetchSubs = async () => {
+    const fetchData = async () => {
       if (user) {
         try {
           const data = await getUserSubscriptions(user.uid);
           setSubscriptions(data);
+          const history = await getMonthlyReports(user.uid);
+          setReports(history);
         } catch (error) {
           console.error("Error", error);
         } finally { setLoading(false); }
       }
     };
-    fetchSubs();
+    fetchData();
   }, [user]);
 
   // SMART AUTO-COMPLETE LOGIC
@@ -147,6 +151,28 @@ export function DashboardPage() {
     });
     return { monthlyTotal: convertCurrency(monthlyUSD, currency) };
   }, [subscriptions, currency]);
+
+  // Sync Monthly Report automatically when total changes
+  useEffect(() => {
+    if (!loading && user && subscriptions.length > 0) {
+      syncMonthlyReport(user.uid, monthlyTotal, subscriptions.length);
+      
+      // Also locally update the reports array so the chart updates instantly!
+      const date = new Date();
+      const currentMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      setReports(prev => {
+        const existingIndex = prev.findIndex(r => r.month === currentMonth);
+        const updatedReport = { month: currentMonth, total: monthlyTotal };
+        if (existingIndex >= 0) {
+          const newReports = [...prev];
+          newReports[existingIndex] = updatedReport;
+          return newReports;
+        } else {
+          return [...prev, updatedReport];
+        }
+      });
+    }
+  }, [monthlyTotal, loading, user, subscriptions.length]);
 
   if (loading) return (
     <div className="flex h-[80vh] items-center justify-center">
@@ -277,7 +303,7 @@ export function DashboardPage() {
 
       {/* Grid Roster: The Bento Widgets */}
       <motion.div variants={itemVariants} className="mt-16">
-         <h2 className="text-sm font-black tracking-[0.2em] text-white/50 uppercase mb-6 px-2 drop-shadow-md">Active Grid Roster</h2>
+         <h2 className="text-sm font-black tracking-[0.2em] text-white/50 uppercase mb-6 px-2 drop-shadow-md">Active Subscription Matrix</h2>
          {subscriptions.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-32 glass-panel border border-white/5 bg-transparent shadow-none">
               <Plus size={48} className="mb-6 text-white/10" />
@@ -330,6 +356,35 @@ export function DashboardPage() {
               </AnimatePresence>
             </div>
          )}
+      </motion.div>
+
+      {/* Analytics Chart */}
+      <motion.div variants={itemVariants} className="mt-16 mb-20 animate-fade-in">
+         <h2 className="text-sm font-black tracking-[0.2em] text-white/50 uppercase mb-6 px-2 drop-shadow-md">Historical Spending Trends</h2>
+         <Card className="glass-panel p-8 h-[400px] flex flex-col justify-center border border-white/5">
+           {reports.length < 1 ? (
+             <div className="text-center text-white/40 font-bold tracking-[0.3em] text-sm uppercase">Initializing Analytics Engine...</div>
+           ) : (
+             <ResponsiveContainer width="100%" height="100%">
+               <AreaChart data={reports} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                 <defs>
+                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="5%" stopColor="#33ccff" stopOpacity={0.8}/>
+                     <stop offset="95%" stopColor="#9933ff" stopOpacity={0}/>
+                   </linearGradient>
+                 </defs>
+                 <XAxis dataKey="month" stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} />
+                 <YAxis stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${currency === 'USD' ? '$' : ''}${val}`} />
+                 <Tooltip 
+                   contentStyle={{ backgroundColor: '#12121a', borderColor: '#ffffff20', borderRadius: '16px', fontWeight: 'bold' }}
+                   itemStyle={{ color: '#33ccff' }}
+                   formatter={(value) => [formatCurrency(value, currency), 'Monthly Output']}
+                 />
+                 <Area type="monotone" dataKey="total" stroke="#33ccff" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" />
+               </AreaChart>
+             </ResponsiveContainer>
+           )}
+         </Card>
       </motion.div>
     </motion.div>
   );

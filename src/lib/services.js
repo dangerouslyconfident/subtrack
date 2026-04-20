@@ -57,6 +57,91 @@ export const POPULAR_SERVICES = [
     plans: [
       { name: 'Plus', price: 20.00, cycle: 'monthly' }
     ]
+  },
+  {
+    name: 'Notion',
+    logo: 'N',
+    color: 'text-gray-300 bg-gray-500/10',
+    plans: [
+      { name: 'Plus', price: 8.00, cycle: 'monthly' },
+      { name: 'Business', price: 15.00, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'GitHub Copilot',
+    logo: 'G',
+    color: 'text-indigo-400 bg-indigo-500/10',
+    plans: [
+      { name: 'Individual', price: 10.00, cycle: 'monthly' },
+      { name: 'Individual Annual', price: 100.00, cycle: 'yearly' }
+    ]
+  },
+  {
+    name: 'Xbox Game Pass',
+    logo: 'X',
+    color: 'text-green-600 bg-green-600/10',
+    plans: [
+      { name: 'Ultimate', price: 16.99, cycle: 'monthly' },
+      { name: 'PC', price: 9.99, cycle: 'monthly' },
+      { name: 'Console Core', price: 9.99, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'PlayStation Plus',
+    logo: 'P',
+    color: 'text-blue-600 bg-blue-600/10',
+    plans: [
+      { name: 'Essential', price: 9.99, cycle: 'monthly' },
+      { name: 'Extra', price: 14.99, cycle: 'monthly' },
+      { name: 'Premium', price: 17.99, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'Hulu',
+    logo: 'H',
+    color: 'text-emerald-400 bg-emerald-400/10',
+    plans: [
+      { name: 'With Ads', price: 7.99, cycle: 'monthly' },
+      { name: 'No Ads', price: 17.99, cycle: 'monthly' },
+      { name: 'Live TV', price: 76.99, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'Max',
+    logo: 'M',
+    color: 'text-purple-500 bg-purple-500/10',
+    plans: [
+      { name: 'With Ads', price: 9.99, cycle: 'monthly' },
+      { name: 'Ad-Free', price: 15.99, cycle: 'monthly' },
+      { name: 'Ultimate', price: 19.99, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'Apple Music',
+    logo: 'A',
+    color: 'text-pink-500 bg-pink-500/10',
+    plans: [
+      { name: 'Individual', price: 10.99, cycle: 'monthly' },
+      { name: 'Family', price: 16.99, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'Figma',
+    logo: 'F',
+    color: 'text-orange-400 bg-orange-400/10',
+    plans: [
+      { name: 'Professional', price: 15.00, cycle: 'monthly' },
+      { name: 'Organization', price: 45.00, cycle: 'monthly' }
+    ]
+  },
+  {
+    name: 'Adobe Creative Cloud',
+    logo: 'A',
+    color: 'text-red-500 bg-red-500/10',
+    plans: [
+      { name: 'All Apps', price: 59.99, cycle: 'monthly' },
+      { name: 'Photography', price: 19.99, cycle: 'monthly' }
+    ]
   }
 ];
 

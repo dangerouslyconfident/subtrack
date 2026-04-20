@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 /**
@@ -42,4 +42,33 @@ export async function deleteSubscription(id) {
 export async function updateSubscription(id, updatedData) {
   const subRef = doc(db, 'subscriptions', id);
   return await updateDoc(subRef, updatedData);
+}
+
+// REPORTS (Analytics Tracking)
+export async function syncMonthlyReport(userId, total, count) {
+  // We use setDoc with merge:true so it continuously updates the CURRENT month's record
+  // When a new month begins, this ID changes, safely locking in the previous month's historical data!
+  const date = new Date();
+  const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  
+  const reportRef = doc(db, 'reports', `${userId}_${yearMonth}`);
+  await setDoc(reportRef, {
+    userId,
+    month: yearMonth,
+    total,
+    subscriptionCount: count,
+    updatedAt: date.toISOString()
+  }, { merge: true });
+}
+
+export async function getMonthlyReports(userId) {
+  const q = query(
+    collection(db, 'reports'),
+    where('userId', '==', userId)
+  );
+  
+  const snapshot = await getDocs(q);
+  const reports = snapshot.docs.map(doc => doc.data());
+  // Sort oldest to newest locally to avoid needing Firebase composite indexes
+  return reports.sort((a, b) => a.month.localeCompare(b.month));
 }
